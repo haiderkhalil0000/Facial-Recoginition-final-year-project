@@ -530,7 +530,7 @@ class SignUp(tk.Frame):
                 c=conn.cursor()
                 c.execute("CREATE TABLE IF NOT EXISTS Signup(id integer unique primary key autoincrement, frist_name TEXT, last_name TEXT, Username TEXT)")
                 c.execute("INSERT INTO Signup(frist_name, last_name, Username) VALUES (?,?,?)", (fname_var.get(), lname_var.get(), usr_var.get()))
-                #c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
+                c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
                 c.execute('INSERT INTO Login(Username, Password) VALUES(?,?)', (usr_var.get(), pass_var.get()))
                 conn.commit()
                 messagebox.showinfo("Saved", "Data Saved Successfully!")
