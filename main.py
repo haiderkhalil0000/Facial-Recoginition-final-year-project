@@ -1,8 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 import sqlite3
+import re
 from tkinter import messagebox
 from tkinter import *
+from tkinter.scrolledtext import ScrolledText
+import smtplib
 from playsound import playsound
 import cv2
 import os
@@ -40,7 +43,7 @@ class MainClass(tk.Tk):
 
         self.frames = {}
 
-        for F in (StartPage, Login, SignUp, Registration, AttendanceEmployee, SecondPage, ThirdPage, Employee, Show_Employee, Developers):
+        for F in (StartPage, Login, SignUp, Registration, AttendanceEmployee, SecondPage, ThirdPage, Employee, Show_Employee, Developers, Email):
             frame = F(container, self)
 
             self.frames[F] = frame
@@ -53,6 +56,7 @@ class MainClass(tk.Tk):
     def show_frame(self, cont):
         frame = self.frames[cont]
         frame.tkraise()
+
 
 class StartPage(tk.Frame):
 
@@ -117,6 +121,7 @@ class SecondPage(tk.Frame):
                 messagebox.showerror("Error", "Invalid Username or Password")
                 admin_name.delete(0, END)
                 admin_password.delete(0, END)
+
                 
 class ThirdPage(tk.Frame):
     
@@ -196,7 +201,6 @@ class Login(tk.Frame):
 
 
 
-
 class AttendanceEmployee(tk.Frame):
 
 	def __init__(self, parent, controller):
@@ -207,11 +211,12 @@ class AttendanceEmployee(tk.Frame):
 		l.image=photo
 		l.pack()          
 		btn_emp_reg = ttk.Button(self, text="Register Employee", width=20, command=lambda: controller.show_frame(Registration)).place(x=490, y=50, width=150, height=40)
-		btn_attendance = ttk.Button(self, text="Train Model", width=20, command = lambda:trainer()).place(x=490, y=120, width=150, height=40)
-		btn_train_ = ttk.Button(self, text="Mark Attendance", width = 20, command = lambda: recognizer()).place(x=490, y=190, width=150, height=40)
-		btn_list = ttk.Button(self, text="Employee List", width=20, command = lambda: controller.show_frame(Employee)).place(x=490, y=260, width=150, height=40)
-		btn_show_employee = ttk.Button(self, text="Show Attendance", width=20, command = lambda:controller.show_frame(Show_Employee)).place(x=490, y=330, width=150, height=40)
-		btn_show_employee = ttk.Button(self, text="Save To Cloud (FireBase)", width=20, command = lambda:cloud()).place(x=490, y=400, width=150, height=40)
+		btn_attendance = ttk.Button(self, text="Train Model", width=20, command = lambda:trainer()).place(x=490, y=110, width=150, height=40)
+		btn_train_ = ttk.Button(self, text="Mark Attendance", width = 20, command = lambda: recognizer()).place(x=490, y=170, width=150, height=40)
+		btn_list = ttk.Button(self, text="Employee List", width=20, command = lambda: controller.show_frame(Employee)).place(x=490, y=230, width=150, height=40)
+		btn_show_employee = ttk.Button(self, text="Show Attendance", width=20, command = lambda:controller.show_frame(Show_Employee)).place(x=490, y=290, width=150, height=40)
+		btn_show_employee = ttk.Button(self, text="Save To Cloud (FireBase)", width=20, command = lambda:cloud()).place(x=490, y=350, width=150, height=40)
+		btn_show_employee = ttk.Button(self, text="Send Email", width=20, command = lambda:controller.show_frame(Email)).place(x=490, y=410, width=150, height=40)
 		btn_show_employee = ttk.Button(self, text="About Developers", width=20, command = lambda:controller.show_frame(Developers)).place(x=490, y=470, width=150, height=40)
 		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
 		def trainer():
@@ -272,8 +277,10 @@ class AttendanceEmployee(tk.Frame):
 					ids,conf = recognizer.predict(gray[y:y+h,x:x+w])
 					c.execute("select employee_name from employee where id = (?);", (ids,))
 					result = c.fetchall()
-					employee_name = result[0][0]
-
+					try:
+						employee_name = result[0][0]
+					except IndexError:
+						messagebox.showerror("Error", "Employee Does Not Exists Or Train Model Again")
 					c.execute('select * from employee where id = (?);', (ids,))
 					result2  = c.fetchall()[0]
 					pid_emp = result2[0]
@@ -309,6 +316,29 @@ class AttendanceEmployee(tk.Frame):
 							conn.commit()
 							cap.release()
 							cv2.destroyAllWindows()							
+							try:
+								date_object = datetime.now()
+								date_now = date_object.strftime("%Y-%m-%d")
+								time_now = date_object.strftime("%H:%M:%S")
+								c.execute('select employee_email from employee where id = (?);', (ids,))
+								receiver_email = c.fetchall()[0][0]
+								c.execute('select employee_name from employee where id = (?);', (ids,))
+								receiver_name = c.fetchall()[0][0]
+								print(receiver_name)
+								sender_email = 'pydeveloper000@gmail.com'
+								sender_password = 'fypproject'
+								server = smtplib.SMTP('smtp.gmail.com', 587)
+								server.ehlo()
+								server.starttls()
+								server.login(sender_email, sender_password)
+								attendance_mail = "Hello There "+receiver_name+", Your Attendance is marked Successfully of the date "+date_now+" ."
+								message = 'Subject: Attendance Marked \n{}'.format(attendance_mail)
+								server.sendmail(sender_email,receiver_email,message)
+								server.quit()
+								messagebox.showinfo("Success", "Attendance Marked And Mail is Successfully Sent To The Employee")
+							except:
+								messagebox.showerror("Error", "Attendance Marked But Email Doesn't Sent Because Something Went Wrong")							
+
 						c.execute('SELECT * FROM attendance_sheet WHERE attendance_date = CURRENT_DATE')
 						attendance_of_employee = c.fetchall()
 						conn.commit()
@@ -339,10 +369,7 @@ class AttendanceEmployee(tk.Frame):
 					cap.release()
 					cv2.destroyAllWindows()
 					break
-				
-						
-
-			
+													
 
 class Registration(tk.Frame):
 
@@ -373,48 +400,69 @@ class Registration(tk.Frame):
         'MA(English)','MA(Education)', 'Zology', 'Botany', 'BBA')
         emp_dep.place(x=270, y=130)
 
+        Label(self, text="Employee Email", font=("Times New Roman", 12, 'bold'), bg="black", fg="white").place(x=150, y=160)
+
+        emp_email = StringVar()
+        usr_email = ttk.Entry(self, width=20, textvariable=emp_email)
+        usr_email.place(x=270, y=160)
 
         btn_emp = ttk.Button(self, text="Register & Capture", command= lambda: save_emp())
-        btn_emp.place(x=270, y=160,width=140, height=40)
+        btn_emp.place(x=270, y=190,width=140, height=40)
         btn_back = ttk.Button(self, text="Back", command= lambda: controller.show_frame(AttendanceEmployee))
         btn_back.place(x=5, y=50)
         Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
 
 
         def save_emp():
+
             emp_id_error = emp_id.get()
             emp_user_error = user_emp.get()
             emp_depart_error = emp_depart.get()
             name = user.get()
+            emp_email_error = emp_email.get()
+
+            email = str(emp_email.get())
 
             conn = sqlite3.connect("Registration.db")
             c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department)")
+            c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
             uid = c.lastrowid
             conn.commit()
             find_data= ("SELECT * FROM employee WHERE employee_id = ?")
             c.execute(find_data,[(emp_id_error)])
             resultss=c.fetchall()
+            match = re.search(r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b', email, re.I)
 
             if emp_user_error == "":
-                messagebox.show("Error", "Employee Name Can't be empty")
+                messagebox.showerror("Error", "Employee Name Can't be empty")
+
             elif emp_id_error == "":
                 messagebox.showerror("Error", "Employee ID Can't be empty")
-            elif emp_depart_error == "":
+
+            elif len(emp_depart_error) == 0:
                 messagebox.showerror("Error", "Employee Department Can't be empty")
-                print(emp_depart_error)
+
             elif len(resultss) >0:
             	messagebox.showerror("Error", "This Employee ID Already Exists")
+
+            elif emp_email_error == "":
+                messagebox.showerror("Error", "Employee Email Can't be empty")
+           
+            elif match == None:
+                messagebox.showerror("Error", "Invalid Email Address")
+
             else:
                 conn = sqlite3.connect('Registration.db')
                 c = conn.cursor()
-                c.execute('INSERT INTO employee (employee_name, employee_id, employee_department) VALUES (?,?,?)',
-                          (user_emp.get(), emp_id.get(), emp_depart.get()))
+                c.execute('INSERT INTO employee (employee_name, employee_id, employee_department, employee_email) VALUES (?,?,?,?)',
+                          (user_emp.get(), emp_id.get(), emp_depart.get(), emp_email.get()))
                 
                 conn.commit()
                 user.delete(0, END)
                 usr_id.delete(0, END)
                 emp_dep.delete(0, END)
+                usr_email.delete(0, END)
+
 
                 conn = sqlite3.connect("Registration.db")
                 c = conn.cursor()
@@ -450,8 +498,7 @@ class Registration(tk.Frame):
             dir = os.path.dirname(path)
             if not os.path.exists(dir):
                 os.makedirs(dir)
-
-                
+               
               
 class SignUp(tk.Frame):
 
@@ -514,15 +561,15 @@ class SignUp(tk.Frame):
             conpass_error = conpass_var.get()
 
             if fname_error == "":
-                messagebox.showinfo("Invalid Input", "Please Enter First Name")
+                messagebox.showerror("Invalid Input", "Please Enter First Name")
             elif lname_error == "":
-                messagebox.showinfo("Invalid Input", "Please Enter Last Name")
+                messagebox.showerror("Invalid Input", "Please Enter Last Name")
             elif user_error == "":
-                messagebox.showinfo("Invalid Input", "Please Enter Username")
+                messagebox.showerror("Invalid Input", "Please Enter Username")
             elif pass_error == "":
-                messagebox.showinfo("Invalid Input", "Please Enter Password")
+                messagebox.showerror("Invalid Input", "Please Enter Password")
             elif conpass_error == "":
-                messagebox.showinfo("Invalid Input", "Please Enter Confirm Password")
+                messagebox.showerror("Invalid Input", "Please Enter Confirm Password")
             elif pass_error != conpass_error:
                 messagebox.showinfo("Invalid Input", "Password Does Not Matches")
             else:
@@ -554,17 +601,20 @@ class Employee(tk.Frame):
 		c = conn.cursor()
 		rows = c.fetchall()
 		tree = ttk.Treeview(self)
-		tree["columns"]=("one","two","three", "four")
+		tree["columns"]=("one","two","three", "four", "five")
 		tree.column("#0", width=0, minwidth=50, stretch=tk.NO)
 		tree.column("one", width=50, minwidth=50, stretch=tk.NO)
-		tree.column("two", width=150, minwidth=150)
-		tree.column("three", width=150, minwidth=150, stretch=tk.NO)
+		tree.column("two", width=70, minwidth=70)
+		tree.column("three", width=100, minwidth=100, stretch=tk.NO)
 		tree.column("four", width=150, minwidth=150, stretch=tk.NO)
+		tree.column("five", width=170, minwidth=170, stretch=tk.NO)
+
 		tree.heading("#0",text="index",anchor=tk.W)
 		tree.heading("one", text="ID",anchor=tk.W)
 		tree.heading("two", text="Employee Name",anchor=tk.W)
 		tree.heading("three", text="Employee ID",anchor=tk.W)
 		tree.heading("four", text="Employee Department", anchor= tk.W)
+		tree.heading("five", text="Employee Email", anchor= tk.W)
 		tree.place(x=5, y=80, width=650)
 		
 		
@@ -574,6 +624,10 @@ class Employee(tk.Frame):
 
 		clear_btn = ttk.Button(self, width=20, text="Refresh", command= lambda:refresh())
 		clear_btn.place(x= 470, y=350, width=100, height=40)
+
+		clear_btn = ttk.Button(self, width=20, text="Update Data", command= lambda:update())
+		clear_btn.place(x= 470, y=400, width=100, height=40)
+
 
 		btn_dlt = ttk.Button(self, text="Delete User", width=20, command= lambda: dlt())
 		btn_dlt.place(x= 290, y=350, width=100, height=40)
@@ -602,7 +656,7 @@ class Employee(tk.Frame):
 				today = str(date.today())
 				pdf = SimpleDocTemplate("./Employee Data PDF/Employee List "+today+".pdf")
 				flow_obj = []
-				td = [['ID','Employee Name', "Employee ID", "Employee Department"]]
+				td = [['ID','Employee Name', "Employee ID", "Employee Department", "Employee Email"]]
 				for i in data_employee:
 					td.append(i)
 				table = Table(td)
@@ -622,7 +676,7 @@ class Employee(tk.Frame):
 			else:
 				if not os.path.exists('./Employee Data Excel'):
 					os.makedirs('./Employee Data Excel')
-				data = pd.DataFrame(data_employee, columns= ['ID','Employee Name', 'Employee ID', 'Employee Department'])
+				data = pd.DataFrame(data_employee, columns= ['ID','Employee Name', 'Employee ID', 'Employee Department', 'Employee Email'])
 				datatoexcel = pd.ExcelWriter("Employee Data Excel/Employee List "+today+".xlsx", engine='xlsxwriter')
 				data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
 				worksheet = datatoexcel.sheets['Sheet']
@@ -630,6 +684,7 @@ class Employee(tk.Frame):
 				worksheet.set_column('B:B', 20)
 				worksheet.set_column('C:C', 25)
 				worksheet.set_column('D:D', 20)
+				worksheet.set_column('E:E', 25)
 				datatoexcel.save()
 				messagebox.showinfo("Success", "Excel File is Generated Successfully")
 
@@ -672,6 +727,66 @@ class Employee(tk.Frame):
 			except IndexError as e:
 				messagebox.showerror("Error", "Please Select A Record")
 				return
+
+		def update():
+			conn = sqlite3.connect("Registration.db")
+			c = conn.cursor()
+			try:
+				id = tree.item(tree.selection())['values']
+				dlt_id = id[2]
+				c.execute("SELECT * FROM employee WHERE employee_id=?;", ([(dlt_id)]))
+				all_data = c.fetchall()
+				update_id= all_data[0][0]
+				old_name = all_data[0][1]
+				old_email = all_data[0][4]
+				top = Tk()
+				top.geometry("300x400")
+				top.title("Update Record")
+				frame = Frame(top)
+				Label(top, text="Update Data", font=("Times New Roman", 20, 'bold'), bg="black", fg="white").pack(fill="x")
+
+				Label(top, text="Employee's Previous Name").pack()
+				Entry(top, width=30, textvariable=StringVar(top, value=old_name), state='readonly').pack()
+
+				Label(top, text="Employee's New Name").pack()
+				new_value_name_var = StringVar()
+				new_value_name = ttk.Entry(top, width=30, textvariable= new_value_name_var)
+				new_value_name.pack()
+
+				Label(top, text="Employee's Previous Email").pack()
+				Entry(top, width=30, textvariable=StringVar(top, value=old_email), state='readonly').pack()
+				
+				Label(top, text="Employee's New Email").pack()
+				new_value_email_var = StringVar()
+				new_value_email = ttk.Entry(top, width=30, textvariable= new_value_email_var)
+				new_value_email.pack()
+				
+				btn_update = ttk.Button(top, width=12, text="Update", command= lambda:update_record(old_name, old_email, new_value_name.get(), new_value_email.get()))
+				btn_update.pack()
+				frame.pack()
+				
+				def update_record(name, email, new_name, new_email):
+
+					match = re.search(r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b', new_email, re.I)
+
+					if new_name == "":
+						messagebox.showerror("Error", "Please Enter Name")
+					elif new_email == "":
+						messagebox.showerror("Error", "Please Enter Email")
+					elif match == None:
+						messagebox.showerror("Error", "Invalid Email Address")
+					else:
+						conn = sqlite3.connect("Registration.db")
+						c = conn.cursor()
+						c.execute('UPDATE employee SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
+						c.execute('UPDATE employee SET employee_email = :new_email WHERE employee_email = :email',{'email': email, "new_email": new_email})
+						conn.commit()
+						messagebox.showinfo("Success", "Record Is Updated Successfully Please Refresh To See Changes.")
+						top.destroy()
+
+			except IndexError as e:
+				messagebox.showerror("Error", "Please Select A Record")
+
 
 
 class Show_Employee(tk.Frame):
@@ -832,6 +947,82 @@ class Show_Employee(tk.Frame):
 					for r in results_data:
 						tree_scnd.insert("", tk.END, values=r)
 
+
+class Email(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		Label(self, text="Send Emails To Employee", font=("Times New Roman", 20, 'bold'), bg="black", fg="white").pack(fill=X)
+
+		photo = PhotoImage(file = '1.png')
+		l = Label(self, image=photo)
+		l.image=photo
+		l.pack()
+
+
+		btn_back = ttk.Button(self, text="Back", command= lambda: controller.show_frame(AttendanceEmployee))
+		btn_back.place(x=5, y=50)
+
+		conn = sqlite3.connect("Registration.db")
+		c = conn.cursor()
+		find_data= ("SELECT employee_email FROM employee")
+		c.execute(find_data)
+		resultss=c.fetchall()
+
+		Label(self, text="Employee's Email Address", font=("Times New Roman", 12, 'bold'), bg="black", fg="white").place(x=50, y=80)
+
+		email_address_var = StringVar()
+		email_address = ttk.Combobox(self, width=30, textvariable=email_address_var,font=("Times New Roman", 10), state='readonly')
+		email_address['values'] = resultss
+		email_address.place(x=270, y=80)
+
+		Label(self, text="Email's Content", font=("Times New Roman", 20, 'bold'), bg="black", fg="white").place(x=50, y=110)
+
+		email_data = StringVar()
+		email_content = Text(self,font=('calibri',20,'bold'),wrap="word")
+		email_content.place(x=50,y=160,width=550,height=280)
+
+		send_btn = ttk.Button(self, width=20, text="Send", command= lambda:send_email())
+		send_btn.place(x=200, y=450, width=140, height=40)
+
+		refresh_btn = ttk.Button(self, width=20, text="Refresh Email List", command= lambda:refresh_list())
+		refresh_btn.place(x=350, y=450, width=140, height=40)
+
+		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
+
+
+		def send_email():
+			email_error = str(email_content.get(1.0,END))
+			email_address_error = email_address_var.get()
+
+			if len(email_address_error) == 0:
+				messagebox.showerror("Error", "Please Select Email Of An Employee From List.")
+
+			else:
+				try:
+					sender_email = 'pydeveloper000@gmail.com'
+					sender_password = 'fypproject'
+					server = smtplib.SMTP('smtp.gmail.com', 587)
+					message = 'Subject: Facial Recoginition Attendance System \n{}'.format(email_error)
+					server.ehlo()
+					server.starttls()
+					server.login(sender_email, sender_password)
+					server.sendmail(sender_email,email_address_error,message)
+					server.quit()
+					messagebox.showinfo("Success", "Email Is Successfully Sent To The Employee.")
+				except:
+					messagebox.showerror("Error", "Email Didn't Sent Connection Problem Or Something Went Wrong")
+
+		def refresh_list():
+			email_list = email_address.get()
+			conn = sqlite3.connect("Registration.db")
+			c = conn.cursor()
+			find_data= ("SELECT employee_email FROM employee")
+			c.execute(find_data)
+			resultss=c.fetchall()
+			email_address['values'] = resultss
+
+
 class Developers(tk.Frame):
 	def __init__(self, parent, controller):
 		tk.Frame.__init__(self, parent)
@@ -846,6 +1037,8 @@ class Developers(tk.Frame):
 		btn_back = ttk.Button(self, text="Back", width=15, command = lambda:controller.show_frame(AttendanceEmployee))
 		btn_back.place(x=5, y=50)
 		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
+
+
 
 app = MainClass()
 app.mainloop()
