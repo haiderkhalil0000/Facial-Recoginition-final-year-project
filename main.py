@@ -78,7 +78,9 @@ class StartPage(tk.Frame):
 		button.place(x=490, y=130, width=150, height=40)
 
 		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
-
+		conn = sqlite3.connect("Registration.db")
+		c = conn.cursor()
+		c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
 
 
 class SecondPage(tk.Frame):
