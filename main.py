@@ -81,6 +81,11 @@ class StartPage(tk.Frame):
 		conn = sqlite3.connect("Registration.db")
 		c = conn.cursor()
 		c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
+		c.execute("CREATE TABLE IF NOT EXISTS absent_employee(employee_name TEXT, employee_id TEXT, employee_department, employee_status TEXT, attendance_date TEXT, attendance_time TEXT)")
+		c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
+		c.execute("CREATE TABLE IF NOT EXISTS attendance_sheet(employee_name TEXT, employee_id TEXT, employee_department TEXT, employee_status TEXT, attendance_date TEXT,attendance_time TEXT)");
+		c.execute("CREATE TABLE IF NOT EXISTS Signup(id integer unique primary key autoincrement, frist_name TEXT, last_name TEXT, Username TEXT)")
+		c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
 
 
 class SecondPage(tk.Frame):
@@ -117,7 +122,7 @@ class SecondPage(tk.Frame):
                 messagebox.showerror("Error", "Please Fill The Fields First")
             elif admin_pass_error == "":
                 messagebox.showerror("Error","Please Fill The Fields First")
-            elif admin_name_error == "AdminUE" and admin_pass_error == "Admin@UE":
+            elif admin_name_error == "ali" and admin_pass_error == "ali@UE":
                 controller.show_frame(ThirdPage)
             else:
                 messagebox.showerror("Error", "Invalid Username or Password")
@@ -179,9 +184,7 @@ class Login(tk.Frame):
 
         def check():
         	conn = sqlite3.connect("Registration.db")
-        	c = conn.cursor()
-        	c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
-        	conn.commit()
+        	c = conn.cursor()        	
         	a = user.get()
         	b = password.get()
         	if a == "":
@@ -300,10 +303,9 @@ class AttendanceEmployee(tk.Frame):
 						
 						conn = sqlite3.connect("Registration.db")
 						c = conn.cursor()
-						c.execute("CREATE TABLE IF NOT EXISTS attendance_sheet(employee_name TEXT, employee_id TEXT, employee_department TEXT, employee_status TEXT, attendance_time TEXT,attendance_date TEXT)");
+						
 						c.execute('SELECT * FROM attendance_sheet WHERE employee_name = (?) AND attendance_date = CURRENT_DATE;', (employee_name,))
 						rzlt = c.fetchall()
-						
 						if len(rzlt) > 0:
 							cap.release()
 							cv2.destroyAllWindows()
@@ -311,35 +313,64 @@ class AttendanceEmployee(tk.Frame):
 								
 						
 						else:
-							c.execute("INSERT INTO attendance_sheet(employee_name, employee_id, employee_department,employee_status, attendance_time, attendance_date) VALUES(?,?,?,?,?,?)",(name_emp, id_emp, dept_emp, status_emp, time_now, date_now))
-							#c.execute("INSERT INTO attendance_sheet (attendance_time)VALUES(time(CURRENT_TIME,'localt'))")
-							messagebox.showinfo("Success", "Attendance of employee "+name_emp+" is Marked Successfully!")
-							playsound('./sound.mp3')
-							conn.commit()
+							
+							c.execute("SELECT attendance_date FROM absent_employee ORDER BY attendance_date DESC LIMIT 1;")
+							last_record = c.fetchall()
+							print(last_record)
+							c.execute("SELECT * FROM absent_employee")
+							i = c.fetchall()
+
+							if len(i) == 0:
+								c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+								conn.commit()
+							
+							elif last_record[0][0] == None or len(i) >0:									
+								c.execute("INSERT INTO attendance_sheet(employee_name, employee_id, employee_department,employee_status, attendance_date, attendance_time) VALUES(?,?,?,?,?,?)",(name_emp, id_emp, dept_emp, status_emp, date_now, time_now))
+								c.execute("UPDATE absent_employee SET employee_status = 'ABSENT' WHERE NOT employee_id = :emp_rec_id AND employee_status IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE absent_employee SET attendance_time  = 'N/A' WHERE NOT employee_id = :emp_rec_id AND attendance_time  IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE absent_employee SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
+								c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND employee_status = 'ABSENT' OR employee_status IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE absent_employee SET attendance_time  = :attend_time WHERE employee_id = :emp_rec_id AND attendance_time = 'N/A' OR attendance_time IS NULL", {'emp_rec_id': id_emp, 'attend_time': time_now})
+								messagebox.showinfo("Success", "Attendance of employee "+name_emp+" is Marked Successfully!")
+								playsound('./sound.mp3')
+								conn.commit()
+							
+								try:
+									date_object = datetime.now()
+									date_now = date_object.strftime("%Y-%m-%d")
+									time_now = date_object.strftime("%H:%M:%S")
+									c.execute('select employee_email from employee where id = (?);', (ids,))
+									receiver_email = c.fetchall()[0][0]
+									c.execute('select employee_name from employee where id = (?);', (ids,))
+									receiver_name = c.fetchall()[0][0]
+									print(receiver_name)
+									sender_email = 'pydeveloper000@gmail.com'
+									sender_password = 'fypproject'
+									server = smtplib.SMTP('smtp.gmail.com', 587)
+									server.ehlo()
+									server.starttls()
+									server.login(sender_email, sender_password)
+									attendance_mail = "Hello There "+receiver_name+", Your Attendance is marked Successfully of the date "+date_now+" ."
+									message = 'Subject: Attendance Marked \n{}'.format(attendance_mail)
+									server.sendmail(sender_email,receiver_email,message)
+									server.quit()
+									messagebox.showinfo("Success", "Attendance Marked And Mail is Successfully Sent To The Employee")
+								except:
+									messagebox.showerror("Error", "Attendance Marked But Email Doesn't Sent Because Something Went Wrong")							
+
+							elif True:
+									try:
+										last_record_date = last_record[0][0]
+									except ValueError as e:
+										pass
+									date_record = datetime.strptime(str(last_record_date), '%Y-%m-%d').date()
+									current_date = datetime.strptime(date_now, '%Y-%m-%d').date()
+									if date_record != current_date:
+										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+										conn.commit()
+
 							cap.release()
 							cv2.destroyAllWindows()							
-							try:
-								date_object = datetime.now()
-								date_now = date_object.strftime("%Y-%m-%d")
-								time_now = date_object.strftime("%H:%M:%S")
-								c.execute('select employee_email from employee where id = (?);', (ids,))
-								receiver_email = c.fetchall()[0][0]
-								c.execute('select employee_name from employee where id = (?);', (ids,))
-								receiver_name = c.fetchall()[0][0]
-								print(receiver_name)
-								sender_email = 'pydeveloper000@gmail.com'
-								sender_password = 'fypproject'
-								server = smtplib.SMTP('smtp.gmail.com', 587)
-								server.ehlo()
-								server.starttls()
-								server.login(sender_email, sender_password)
-								attendance_mail = "Hello There "+receiver_name+", Your Attendance is marked Successfully of the date "+date_now+" ."
-								message = 'Subject: Attendance Marked \n{}'.format(attendance_mail)
-								server.sendmail(sender_email,receiver_email,message)
-								server.quit()
-								messagebox.showinfo("Success", "Attendance Marked And Mail is Successfully Sent To The Employee")
-							except:
-								messagebox.showerror("Error", "Attendance Marked But Email Doesn't Sent Because Something Went Wrong")							
 
 						c.execute('SELECT * FROM attendance_sheet WHERE attendance_date = CURRENT_DATE')
 						attendance_of_employee = c.fetchall()
@@ -427,7 +458,7 @@ class Registration(tk.Frame):
 
             conn = sqlite3.connect("Registration.db")
             c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
+            
             uid = c.lastrowid
             conn.commit()
             find_data= ("SELECT * FROM employee WHERE employee_id = ?")
@@ -458,7 +489,6 @@ class Registration(tk.Frame):
                 c = conn.cursor()
                 c.execute('INSERT INTO employee (employee_name, employee_id, employee_department, employee_email) VALUES (?,?,?,?)',
                           (user_emp.get(), emp_id.get(), emp_depart.get(), emp_email.get()))
-                
                 conn.commit()
                 user.delete(0, END)
                 usr_id.delete(0, END)
@@ -577,9 +607,9 @@ class SignUp(tk.Frame):
             else:
                 conn=sqlite3.connect('Registration.db')
                 c=conn.cursor()
-                c.execute("CREATE TABLE IF NOT EXISTS Signup(id integer unique primary key autoincrement, frist_name TEXT, last_name TEXT, Username TEXT)")
+                
                 c.execute("INSERT INTO Signup(frist_name, last_name, Username) VALUES (?,?,?)", (fname_var.get(), lname_var.get(), usr_var.get()))
-                c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
+                
                 c.execute('INSERT INTO Login(Username, Password) VALUES(?,?)', (usr_var.get(), pass_var.get()))
                 conn.commit()
                 messagebox.showinfo("Saved", "Data Saved Successfully!")
@@ -800,22 +830,27 @@ class Show_Employee(tk.Frame):
 		l = Label(self, image=photo)
 		l.image=photo
 		l.pack()
-		Label(self, text="Seach Employee By Entering Employee ID", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=50, y=100)
+		Label(self, text="Seach Employee By Entering Employee ID", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=120, y=50)
 	
 		search_id = StringVar()
 		search_box = ttk.Entry(self, width=20, textvariable= search_id)
 		search_box.focus()
-		search_box.place(x=300, y=100)
-		search_btn = ttk.Button(self, text="Search By ID", command= lambda:search_by_id())
-		search_btn.place(x=450, y=90, width=140, height=40)
+		search_box.place(x=380, y=50)
+		search_btn = ttk.Button(self, text="Search All Record", command= lambda:search_by_id())
+		search_btn.place(x=250, y=80, width=140, height=30)
 
-		Label(self, text="Seach Employee By Entering Date as YYYY-MM-DD", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=5, y=150)
+		search_btn1 = ttk.Button(self, text="Search Only Present", command= lambda:search_by_id_p())
+		search_btn1.place(x=450, y=80, width=140, height=30)
+
+		Label(self, text="Seach Employee By Entering Date as YYYY-MM-DD", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=60, y=130)
 		search_date = StringVar()
 		search_box = ttk.Entry(self, width=20, textvariable= search_date)
 		search_box.focus()
-		search_box.place(x=300, y=150)
-		search_btn_date = ttk.Button(self, width=20, text="Search By Date", command= lambda:search_by_date())
-		search_btn_date.place(x=450, y=140, width=140, height=40)
+		search_box.place(x=380, y=130)
+		search_btn_date = ttk.Button(self, width=20, text="Search All Record", command= lambda:search_by_date())
+		search_btn_date.place(x=250, y=160, width=140, height=30)
+		search_btn_date = ttk.Button(self, width=20, text="Search Only Present", command= lambda:search_by_date_p())
+		search_btn_date.place(x=450, y=160, width=140, height=30)
 
 		tree_scnd = ttk.Treeview(self)
 		tree_scnd["columns"] = ("one", "two", "three", "four", "five", "six")
@@ -835,15 +870,15 @@ class Show_Employee(tk.Frame):
 		tree_scnd.heading("five", text="Attendance Date", anchor=tk.W)
 		tree_scnd.heading("six", text="Attendance Time", anchor=tk.W)
 
-		tree_scnd.place(x=0, y=200)
+		tree_scnd.place(x=0, y=220)
 		
 		clear_btn = ttk.Button(self, width=20, text="Save to Xlsx", command= lambda:xlsx())
-		clear_btn.place(x=100, y=450, width=140, height=40)
+		clear_btn.place(x=100, y=460, width=140, height=30)
 		clear_btn = ttk.Button(self, width=20, text="Save to PDF", command= lambda:pdf())
-		clear_btn.place(x=270, y=450, width=140, height=40)
+		clear_btn.place(x=270, y=460, width=140, height=30)
 		clear_btn = ttk.Button(self, width=20, text="Clear All", command= lambda:clear())
-		clear_btn.place(x=450, y=450, width=140, height=40)
-		
+		clear_btn.place(x=450, y=460, width=140, height=30)
+
 		btn_back = ttk.Button(self, text="Back", width=15, command = lambda:controller.show_frame(AttendanceEmployee))
 		btn_back.place(x=5, y=50)
 		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
@@ -896,8 +931,8 @@ class Show_Employee(tk.Frame):
 				flow_obj.append(table)
 				pdf.build(flow_obj)
 				messagebox.showinfo("Success", "PDF generated Successfully")
-		
-		def search_by_id():
+
+		def search_by_id_p():
 			for i in tree_scnd.get_children():
 				tree_scnd.delete(i)
 			id_error = search_id.get()
@@ -920,6 +955,55 @@ class Show_Employee(tk.Frame):
 				for r in resultss:
 					tree_scnd.insert("", tk.END, values=r)
 
+		
+		def search_by_date_p():
+			for i in tree_scnd.get_children():
+				tree_scnd.delete(i)
+			date_error = search_date.get()
+
+			conn = sqlite3.connect("Registration.db")
+			c = conn.cursor()
+			date_search = str(search_date.get())
+			if date_search == "":
+				messagebox.showerror("Error", "Please Enter Date")
+			else:
+				searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
+				find_data= ("SELECT * FROM attendance_sheet WHERE attendance_date = ?")
+				c.execute(find_data,[(searched_date)])
+				results_data=c.fetchall()
+
+				counter_date = len(tree_scnd.get_children())
+			
+			
+				if len(results_data) == 0:
+					messagebox.showerror("Error", "Please Enter a Valid Date or Record Does not Exists")
+				if counter_date == 0:
+					for r in results_data:
+						tree_scnd.insert("", tk.END, values=r)
+
+		def search_by_id():
+			for i in tree_scnd.get_children():
+				tree_scnd.delete(i)
+			id_error = search_id.get()
+
+			conn = sqlite3.connect("Registration.db")
+			c = conn.cursor()
+			id_search = str(search_id.get())
+			find_data= ("SELECT * FROM absent_employee WHERE employee_id = ?")
+			c.execute(find_data,[(id_search)])
+			resultss=c.fetchall()
+			counter_data = len(tree_scnd.get_children())
+
+			if id_error == "":
+				messagebox.showerror("Error", "Please Enter Employee ID")
+			
+			elif len(resultss) ==0:
+				messagebox.showerror("Error", "Invalid ID or Record Does Not Exists")
+
+			elif counter_data == 0:
+				for r in resultss:
+					tree_scnd.insert("", tk.END, values=r)
+
 		def clear():
 			for i in tree_scnd.get_children():
 				tree_scnd.delete(i)
@@ -936,7 +1020,7 @@ class Show_Employee(tk.Frame):
 				messagebox.showerror("Error", "Please Enter Date")
 			else:
 				searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
-				find_data= ("SELECT * FROM attendance_sheet WHERE attendance_date = ?")
+				find_data= ("SELECT * FROM absent_employee WHERE attendance_date = ?")
 				c.execute(find_data,[(searched_date)])
 				results_data=c.fetchall()
 
