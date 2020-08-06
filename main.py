@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import sqlite3
 import re
+import random
 from tkinter import messagebox
 from tkinter import *
 from tkinter.scrolledtext import ScrolledText
@@ -314,17 +315,32 @@ class AttendanceEmployee(tk.Frame):
 						
 						else:
 							
-							c.execute("SELECT attendance_date FROM absent_employee ORDER BY attendance_date DESC LIMIT 1;")
+							c.execute("SELECT attendance_date FROM absent_employee ORDER BY employee_id DESC LIMIT 1;")
 							last_record = c.fetchall()
-							print(last_record)
 							c.execute("SELECT * FROM absent_employee")
 							i = c.fetchall()
 
 							if len(i) == 0:
 								c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+								c.execute("UPDATE absent_employee SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
 								conn.commit()
 							
-							elif last_record[0][0] == None or len(i) >0:									
+							elif last_record[0][0] == None or len(i) >0:
+								try:
+									last_record_dat = last_record[0][0]
+									date_record = datetime.strptime(str(last_record_dat), '%Y-%m-%d').date()
+								except ValueError as e:
+									pass
+								current_date = datetime.strptime(date_now, '%Y-%m-%d').date()									
+								if date_record != current_date:
+										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+
+								if len(i) > 0:
+									c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_emp,))
+									x = c.fetchall()
+									if len(x) == 0:
+										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department, attendance_date) VALUES (?,?,?,?)", (name_emp, id_emp, dept_emp,date_now))
+								
 								c.execute("INSERT INTO attendance_sheet(employee_name, employee_id, employee_department,employee_status, attendance_date, attendance_time) VALUES(?,?,?,?,?,?)",(name_emp, id_emp, dept_emp, status_emp, date_now, time_now))
 								c.execute("UPDATE absent_employee SET employee_status = 'ABSENT' WHERE NOT employee_id = :emp_rec_id AND employee_status IS NULL", {'emp_rec_id': id_emp})
 								c.execute("UPDATE absent_employee SET attendance_time  = 'N/A' WHERE NOT employee_id = :emp_rec_id AND attendance_time  IS NULL", {'emp_rec_id': id_emp})
@@ -343,7 +359,6 @@ class AttendanceEmployee(tk.Frame):
 									receiver_email = c.fetchall()[0][0]
 									c.execute('select employee_name from employee where id = (?);', (ids,))
 									receiver_name = c.fetchall()[0][0]
-									print(receiver_name)
 									sender_email = 'pydeveloper000@gmail.com'
 									sender_password = 'fypproject'
 									server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -358,16 +373,16 @@ class AttendanceEmployee(tk.Frame):
 								except:
 									messagebox.showerror("Error", "Attendance Marked But Email Doesn't Sent Because Something Went Wrong")							
 
-							elif True:
-									try:
-										last_record_date = last_record[0][0]
-									except ValueError as e:
-										pass
-									date_record = datetime.strptime(str(last_record_date), '%Y-%m-%d').date()
-									current_date = datetime.strptime(date_now, '%Y-%m-%d').date()
-									if date_record != current_date:
-										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
-										conn.commit()
+							# elif True:
+							# 		try:
+							# 			last_record_date = last_record[0][0]
+							# 		except ValueError as e:
+							# 			pass
+							# 		date_record = datetime.strptime(str(last_record_date), '%Y-%m-%d').date()
+							# 		current_date = datetime.strptime(date_now, '%Y-%m-%d').date()
+							# 		if date_record != current_date:
+							# 			c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+							# 			conn.commit()
 
 							cap.release()
 							cv2.destroyAllWindows()							
@@ -830,27 +845,22 @@ class Show_Employee(tk.Frame):
 		l = Label(self, image=photo)
 		l.image=photo
 		l.pack()
-		Label(self, text="Seach Employee By Entering Employee ID", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=120, y=50)
+		Label(self, text="Seach Employee By Entering Employee ID", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=50, y=90)
 	
 		search_id = StringVar()
-		search_box = ttk.Entry(self, width=20, textvariable= search_id)
-		search_box.focus()
-		search_box.place(x=380, y=50)
-		search_btn = ttk.Button(self, text="Search All Record", command= lambda:search_by_id())
-		search_btn.place(x=250, y=80, width=140, height=30)
+		search_box1 = ttk.Entry(self, width=20, textvariable= search_id)
+		search_box1.focus()
+		search_box1.place(x=300, y=90)
+		search_btn = ttk.Button(self, text="Search By Id", command= lambda:search_by_id())
+		search_btn.place(x=470, y=90, width=140, height=30)
 
-		search_btn1 = ttk.Button(self, text="Search Only Present", command= lambda:search_by_id_p())
-		search_btn1.place(x=450, y=80, width=140, height=30)
-
-		Label(self, text="Seach Employee By Entering Date as YYYY-MM-DD", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=60, y=130)
+		Label(self, text="Seach Employee By Entering Date as YYYY-MM-DD", font=("Times New Roman", 10, 'bold'), bg="black", fg="white").place(x=5, y=150)
 		search_date = StringVar()
-		search_box = ttk.Entry(self, width=20, textvariable= search_date)
-		search_box.focus()
-		search_box.place(x=380, y=130)
-		search_btn_date = ttk.Button(self, width=20, text="Search All Record", command= lambda:search_by_date())
-		search_btn_date.place(x=250, y=160, width=140, height=30)
-		search_btn_date = ttk.Button(self, width=20, text="Search Only Present", command= lambda:search_by_date_p())
-		search_btn_date.place(x=450, y=160, width=140, height=30)
+		search_box2 = ttk.Entry(self, width=20, textvariable= search_date)
+		search_box2.focus()
+		search_box2.place(x=300, y=150)
+		search_btn_date = ttk.Button(self, width=20, text="Search By Date", command= lambda:search_by_date())
+		search_btn_date.place(x=470, y=150, width=140, height=30)
 
 		tree_scnd = ttk.Treeview(self)
 		tree_scnd["columns"] = ("one", "two", "three", "four", "five", "six")
@@ -870,116 +880,157 @@ class Show_Employee(tk.Frame):
 		tree_scnd.heading("five", text="Attendance Date", anchor=tk.W)
 		tree_scnd.heading("six", text="Attendance Time", anchor=tk.W)
 
-		tree_scnd.place(x=0, y=220)
+		tree_scnd.place(x=0, y=200)
 		
 		clear_btn = ttk.Button(self, width=20, text="Save to Xlsx", command= lambda:xlsx())
-		clear_btn.place(x=100, y=460, width=140, height=30)
+		clear_btn.place(x=100, y=450, width=140, height=30)
 		clear_btn = ttk.Button(self, width=20, text="Save to PDF", command= lambda:pdf())
-		clear_btn.place(x=270, y=460, width=140, height=30)
+		clear_btn.place(x=270, y=450, width=140, height=30)
 		clear_btn = ttk.Button(self, width=20, text="Clear All", command= lambda:clear())
-		clear_btn.place(x=450, y=460, width=140, height=30)
+		clear_btn.place(x=450, y=450, width=140, height=30)
 
 		btn_back = ttk.Button(self, text="Back", width=15, command = lambda:controller.show_frame(AttendanceEmployee))
 		btn_back.place(x=5, y=50)
 		Label(self, text="                                  Facial Recoginition Attendance System                               ", font=("Times New Roman", 15, 'bold'), bg="black", fg="white").place(x=0, y=515)
 		
 		def xlsx():
+			i = random.randint(0,1000)
+			conn = sqlite3.connect("Registration.db")
+			c = conn.cursor()
 			counter_data = len(tree_scnd.get_children())
 			today = str(date.today())
-			if counter_data == 0:
-				messagebox.showerror("Error", "No Data is Availble in Table")
-			else:
-				for line in tree_scnd.get_children():
-					data_emp_table = []
-					for value in tree_scnd.item(line)['values']:
-						data_emp_table += [value]
-				if not os.path.exists('./Saved Employee Attendance Excel'):
-					os.makedirs('./Saved Employee Attendance Excel')
-				data = pd.DataFrame([data_emp_table], columns= ['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
-				datatoexcel = pd.ExcelWriter("Saved Employee Attendance Excel/Employee List "+today+".xlsx", engine='xlsxwriter')
-				data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
-				worksheet = datatoexcel.sheets['Sheet']
-				worksheet.set_column('A:A', 25)
-				worksheet.set_column('B:B', 20)
-				worksheet.set_column('C:C', 25)
-				worksheet.set_column('D:D', 20)
-				worksheet.set_column('E:E', 20)
-				worksheet.set_column('F:F', 20)
-				datatoexcel.save()
-				messagebox.showinfo("Success", "Excel File is Generated Successfully")
+			id_error = search_id.get()
+			date_error = search_date.get()
+			date_another_error = str(date_error)
+			if counter_data != 0:
+				if id_error == 0 and date_error == 0:
+					messagebox.showerror("Error", "Please Insert Date Or Id")
+				elif id_error !=0 or date_error !=0:
+					if id_error !=0:
+						id_search = str(search_id.get())
+						c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_search,))
+						resultss_id=c.fetchall()
+						if not os.path.exists('./Saved Employee Attendance Excel'):
+							os.makedirs('./Saved Employee Attendance Excel')
+						if len(resultss_id) !=0:
+							try:
+								j = str(i)
+								data = pd.DataFrame(resultss_id, columns= ['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
+								datatoexcel = pd.ExcelWriter("Saved Employee Attendance Excel/Employee List "+today+"("+j+").xlsx", engine='xlsxwriter')
+								data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
+								worksheet = datatoexcel.sheets['Sheet']
+								worksheet.set_column('A:A', 25)
+								worksheet.set_column('B:B', 20)
+								worksheet.set_column('C:C', 25)
+								worksheet.set_column('D:D', 20)
+								worksheet.set_column('E:E', 20)
+								worksheet.set_column('F:F', 20)
+								datatoexcel.save()
+								messagebox.showinfo("Success", "Excel File is Generated Successfully Employee List "+today+"("+j+").xlsx")
+							except:
+								messagebox.showerror("Error", "Invalid Id Or Record Does Not Exists")
+				
+					if date_another_error == '':
+						pass
+					else:
+						date_search = str(search_date.get()) 
+						try:
+							try:
+								searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
+							except UnboundLocalError as e:
+								pass
+						except ValueError as e:
+							pass
+						c.execute("SELECT * FROM absent_employee WHERE attendance_date = (?)", (searched_date,))
+						results_data=c.fetchall()
 
+						if not os.path.exists('./Saved Employee Attendance Excel'):
+							os.makedirs('./Saved Employee Attendance Excel')
+						if len(results_data) !=0:
+							try:
+								data = pd.DataFrame(results_data, columns= ['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
+								datatoexcel = pd.ExcelWriter("Saved Employee Attendance Excel/Employee List "+today+"("+str(i)+").xlsx", engine='xlsxwriter')
+								data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
+								worksheet = datatoexcel.sheets['Sheet']
+								worksheet.set_column('A:A', 25)
+								worksheet.set_column('B:B', 20)
+								worksheet.set_column('C:C', 25)
+								worksheet.set_column('D:D', 20)
+								worksheet.set_column('E:E', 20)
+								worksheet.set_column('F:F', 20)
+								datatoexcel.save()
+								messagebox.showinfo("Success", "Excel File is Generated Successfully Employee List "+today+"("+str(i)+").xlsx")
+							except:
+								messagebox.showerror("Error", "Invalid Date Or Record Does Not Exists")
+			else:
+				messagebox.showerror("Error", "No Data Availble In Treeview")
+						
 
 		def pdf():
+			i = random.randint(0,1000)
+			conn = sqlite3.connect("Registration.db")
 			counter_data = len(tree_scnd.get_children())
+			c = conn.cursor()
 			today = str(date.today())
-			if counter_data == 0:
-				messagebox.showerror("Error", "No Data is Availble in Table")
-			else:
-				for line in tree_scnd.get_children():
-					data_emp_table = []
-					for value in tree_scnd.item(line)['values']:
-						data_emp_table += [value]
-				if not os.path.exists('./Saved Employee Attendance PDF'):
-					os.makedirs('./Saved Employee Attendance PDF')
-
-				pdf = SimpleDocTemplate("./Saved Employee Attendance PDF/Employee List "+today+".pdf")
-				flow_obj = []
-				td = [['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time']]
-				for i in [data_emp_table]:
-					td.append(i)
-				table = Table(td)
-				flow_obj.append(table)
-				pdf.build(flow_obj)
-				messagebox.showinfo("Success", "PDF generated Successfully")
-
-		def search_by_id_p():
-			for i in tree_scnd.get_children():
-				tree_scnd.delete(i)
 			id_error = search_id.get()
-
-			conn = sqlite3.connect("Registration.db")
-			c = conn.cursor()
-			id_search = str(search_id.get())
-			find_data= ("SELECT * FROM attendance_sheet WHERE employee_id = ?")
-			c.execute(find_data,[(id_search)])
-			resultss=c.fetchall()
-			counter_data = len(tree_scnd.get_children())
-
-			if id_error == "":
-				messagebox.showerror("Error", "Please Enter Employee ID")
-			
-			elif len(resultss) ==0:
-				messagebox.showerror("Error", "Invalid ID or Employee Does Not Exists")
-
-			elif counter_data == 0:
-				for r in resultss:
-					tree_scnd.insert("", tk.END, values=r)
-
-		
-		def search_by_date_p():
-			for i in tree_scnd.get_children():
-				tree_scnd.delete(i)
 			date_error = search_date.get()
+			date_another_error = str(date_error)
+			if counter_data !=0:
+				if id_error == 0 and date_error == 0:
+					messagebox.showerror("Error", "Please Insert Date Or Id")
+				elif id_error !=0 or date_error !=0:
+					if id_error !=0:
+						id_search = str(search_id.get())
+						c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_search,))
+						resultss_id=c.fetchall()
+						if not os.path.exists('./Saved Employee Attendance PDF'):
+							os.makedirs('./Saved Employee Attendance PDF')
+						if len(resultss_id) !=0:
+							try:
+								pdf = SimpleDocTemplate("./Saved Employee Attendance PDF/Employee List "+today+"("+str(i)+").pdf")
+								flow_obj = []
+								td = [['Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
+								for j in resultss_id:
+									td.append(j)
+								table = Table(td)
+								flow_obj.append(table)
+								pdf.build(flow_obj)
+								messagebox.showinfo("Success", "PDF generated Successfully With This Name Employee List "+today+"("+str(i)+").pdf")
+							except:
+								messagebox.showerror("Error", "Invalid Id Or Record Does Not Exists")
+				
+					if date_error =='':
+						pass
+					else:
+						date_search = str(search_date.get()) 
+						try:
+							try:
+								searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
+							except UnboundLocalError as e:
+								pass
+						except ValueError as e:
+							pass
+						c.execute("SELECT * FROM absent_employee WHERE attendance_date = (?)", (searched_date,))
+						results_data=c.fetchall()
 
-			conn = sqlite3.connect("Registration.db")
-			c = conn.cursor()
-			date_search = str(search_date.get())
-			if date_search == "":
-				messagebox.showerror("Error", "Please Enter Date")
+						if not os.path.exists('./Saved Employee Attendance PDF'):
+							os.makedirs('./Saved Employee Attendance PDF')
+						if len(results_data) !=0:
+							try:
+								pdf = SimpleDocTemplate("./Saved Employee Attendance PDF/Employee List "+today+"("+str(i)+").pdf")
+								flow_obj = []
+								td = [['Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
+								for j in results_data:
+									td.append(j)
+								table = Table(td)
+								flow_obj.append(table)
+								pdf.build(flow_obj)
+								messagebox.showinfo("Success", "PDF generated Successfully With This Name Employee List "+today+"("+str(i)+").pdf")
+							except:
+								messagebox.showerror("Error", "Invalid Id Or Record Does Not Exists")
 			else:
-				searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
-				find_data= ("SELECT * FROM attendance_sheet WHERE attendance_date = ?")
-				c.execute(find_data,[(searched_date)])
-				results_data=c.fetchall()
-
-				counter_date = len(tree_scnd.get_children())
-			
-			
-				if len(results_data) == 0:
-					messagebox.showerror("Error", "Please Enter a Valid Date or Record Does not Exists")
-				if counter_date == 0:
-					for r in results_data:
-						tree_scnd.insert("", tk.END, values=r)
+				messagebox.showerror("Error", "No Data Availble In Treeview")
+						
 
 		def search_by_id():
 			for i in tree_scnd.get_children():
@@ -1019,9 +1070,16 @@ class Show_Employee(tk.Frame):
 			if date_search == "":
 				messagebox.showerror("Error", "Please Enter Date")
 			else:
-				searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
+				try:
+					searched_date = datetime.strptime(date_search, '%Y-%m-%d').date()
+				except ValueError as e:
+					# messagebox.showerror("Error", "Incorrect Date Format")
+					pass
 				find_data= ("SELECT * FROM absent_employee WHERE attendance_date = ?")
-				c.execute(find_data,[(searched_date)])
+				try:
+					c.execute(find_data,[(searched_date)])
+				except UnboundLocalError as e:
+					pass
 				results_data=c.fetchall()
 
 				counter_date = len(tree_scnd.get_children())
