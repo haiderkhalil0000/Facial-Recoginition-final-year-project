@@ -82,7 +82,7 @@ class StartPage(tk.Frame):
 		conn = sqlite3.connect("Registration.db")
 		c = conn.cursor()
 		c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
-		c.execute("CREATE TABLE IF NOT EXISTS absent_employee(employee_name TEXT, employee_id TEXT, employee_department, employee_status TEXT, attendance_date TEXT, attendance_time TEXT)")
+		c.execute("CREATE TABLE IF NOT EXISTS absent_employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_status TEXT, attendance_date TEXT, attendance_time TEXT)")
 		c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
 		c.execute("CREATE TABLE IF NOT EXISTS attendance_sheet(employee_name TEXT, employee_id TEXT, employee_department TEXT, employee_status TEXT, attendance_date TEXT,attendance_time TEXT)");
 		c.execute("CREATE TABLE IF NOT EXISTS Signup(id integer unique primary key autoincrement, frist_name TEXT, last_name TEXT, Username TEXT)")
@@ -234,15 +234,15 @@ class AttendanceEmployee(tk.Frame):
 				s.close()
 				filename=filedialog.askopenfilename(initialdir ='./Attendance',title='Select a file',filetype=(("csv","*.xlsx"),("All files","*.*")))
 				config ={
+				"apiKey": "AIzaSyBGbtBFIYZunNVzEaa21px-JsZou14G4xU",
+				"authDomain": "testing-bb410.firebaseapp.com",
+				"databaseURL": "https://testing-bb410.firebaseio.com",
+				"projectId": "testing-bb410",
+				"storageBucket": "testing-bb410.appspot.com",
+				"messagingSenderId": "745367880043",
+				"appId": "1:745367880043:web:09f556ed6d7ef8643c0c2e",
+				"measurementId": "G-TYDT1WDQW9"
 
-				"apiKey": "AIzaSyD5XTeUeF33km1uclE6FmGnPNAO67oQ9gQ",
-				"authDomain": "attendance-system-3d620.firebaseapp.com",
-				"databaseURL": "https://attendance-system-3d620.firebaseio.com",
-				"projectId": "attendance-system-3d620",
-				"storageBucket": "attendance-system-3d620.appspot.com",
-				"messagingSenderId": "853160863868",
-				"appId": "1:853160863868:web:a25fb086b553786e9101f9",
-				"measurementId": "G-GX9NBVKBCZ"
 				}
 				if len(filename) > 0:
 
@@ -305,7 +305,7 @@ class AttendanceEmployee(tk.Frame):
 						conn = sqlite3.connect("Registration.db")
 						c = conn.cursor()
 						
-						c.execute('SELECT * FROM attendance_sheet WHERE employee_name = (?) AND attendance_date = CURRENT_DATE;', (employee_name,))
+						c.execute('SELECT * FROM attendance_sheet WHERE employee_id = (?) AND attendance_date = CURRENT_DATE;', (id_emp,))
 						rzlt = c.fetchall()
 						if len(rzlt) > 0:
 							cap.release()
@@ -315,7 +315,7 @@ class AttendanceEmployee(tk.Frame):
 						
 						else:
 							
-							c.execute("SELECT attendance_date FROM absent_employee ORDER BY employee_id DESC LIMIT 1;")
+							c.execute("SELECT attendance_date FROM absent_employee ORDER BY id DESC LIMIT 1;")
 							last_record = c.fetchall()
 							c.execute("SELECT * FROM absent_employee")
 							i = c.fetchall()
@@ -345,7 +345,9 @@ class AttendanceEmployee(tk.Frame):
 								c.execute("UPDATE absent_employee SET employee_status = 'ABSENT' WHERE NOT employee_id = :emp_rec_id AND employee_status IS NULL", {'emp_rec_id': id_emp})
 								c.execute("UPDATE absent_employee SET attendance_time  = 'N/A' WHERE NOT employee_id = :emp_rec_id AND attendance_time  IS NULL", {'emp_rec_id': id_emp})
 								c.execute("UPDATE absent_employee SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
-								c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND employee_status = 'ABSENT' OR employee_status IS NULL", {'emp_rec_id': id_emp})
+								# c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND employee_status = 'ABSENT' OR employee_status IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE (employee_id = :emp_rec_id AND attendance_date = :attend_date) AND ((employee_status = 'ABSENT') OR (employee_status IS NULL))", {'emp_rec_id': id_emp, 'attend_date': date_now})
+								# c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND attendance_date = :attend_time AND employee_status = 'ABSENT'", {'emp_rec_id': id_emp, 'attend_time': time_now})
 								c.execute("UPDATE absent_employee SET attendance_time  = :attend_time WHERE employee_id = :emp_rec_id AND attendance_time = 'N/A' OR attendance_time IS NULL", {'emp_rec_id': id_emp, 'attend_time': time_now})
 								messagebox.showinfo("Success", "Attendance of employee "+name_emp+" is Marked Successfully!")
 								playsound('./sound.mp3')
@@ -372,17 +374,6 @@ class AttendanceEmployee(tk.Frame):
 									messagebox.showinfo("Success", "Attendance Marked And Mail is Successfully Sent To The Employee")
 								except:
 									messagebox.showerror("Error", "Attendance Marked But Email Doesn't Sent Because Something Went Wrong")							
-
-							# elif True:
-							# 		try:
-							# 			last_record_date = last_record[0][0]
-							# 		except ValueError as e:
-							# 			pass
-							# 		date_record = datetime.strptime(str(last_record_date), '%Y-%m-%d').date()
-							# 		current_date = datetime.strptime(date_now, '%Y-%m-%d').date()
-							# 		if date_record != current_date:
-							# 			c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
-							# 			conn.commit()
 
 							cap.release()
 							cv2.destroyAllWindows()							
@@ -826,6 +817,7 @@ class Employee(tk.Frame):
 						conn = sqlite3.connect("Registration.db")
 						c = conn.cursor()
 						c.execute('UPDATE employee SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
+						c.execute('UPDATE absent_employee SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
 						c.execute('UPDATE employee SET employee_email = :new_email WHERE employee_email = :email',{'email': email, "new_email": new_email})
 						conn.commit()
 						messagebox.showinfo("Success", "Record Is Updated Successfully Please Refresh To See Changes.")
@@ -863,31 +855,38 @@ class Show_Employee(tk.Frame):
 		search_btn_date.place(x=470, y=150, width=140, height=30)
 
 		tree_scnd = ttk.Treeview(self)
-		tree_scnd["columns"] = ("one", "two", "three", "four", "five", "six")
+		tree_scnd["columns"] = ("one", "two", "three", "four", "five", "six", "seven")
 		tree_scnd.column("#0", width=0, minwidth=0, stretch=tk.NO)
-		tree_scnd.column("one", width=100, minwidth=100, stretch= tk.NO)
-		tree_scnd.column("two", width=100, minwidth=100, stretch=tk.NO)
-		tree_scnd.column("three", width=150, minwidth=100, stretch=tk.NO)
-		tree_scnd.column("four", width=100, minwidth= 100, stretch=tk.NO)
-		tree_scnd.column("five", width=100, minwidth=100, stretch=tk.NO)
+		tree_scnd.column("one", width=20, minwidth=20, stretch= tk.NO)
+		tree_scnd.column("two", width=100, minwidth=100, stretch= tk.NO)
+		tree_scnd.column("three", width=100, minwidth=100, stretch=tk.NO)
+		tree_scnd.column("four", width=130, minwidth=130, stretch=tk.NO)
+		tree_scnd.column("five", width=100, minwidth= 100, stretch=tk.NO)
 		tree_scnd.column("six", width=100, minwidth=100, stretch=tk.NO)
+		tree_scnd.column("seven", width=100, minwidth=100, stretch=tk.NO)
 
 		tree_scnd.heading("#0",text="index", anchor= tk.W)
-		tree_scnd.heading("one", text="Employee Name", anchor=tk.W)
-		tree_scnd.heading("two", text="Employee ID", anchor=tk.W)
-		tree_scnd.heading("three", text="Employee Department", anchor=tk.W)
-		tree_scnd.heading("four", text="Employee Status", anchor=tk.W)
-		tree_scnd.heading("five", text="Attendance Date", anchor=tk.W)
-		tree_scnd.heading("six", text="Attendance Time", anchor=tk.W)
+		tree_scnd.heading("one", text="ID", anchor=tk.W)
+		tree_scnd.heading("two", text="Employee Name", anchor=tk.W)
+		tree_scnd.heading("three", text="Employee ID", anchor=tk.W)
+		tree_scnd.heading("four", text="Employee Department", anchor=tk.W)
+		tree_scnd.heading("five", text="Employee Status", anchor=tk.W)
+		tree_scnd.heading("six", text="Attendance Date", anchor=tk.W)
+		tree_scnd.heading("seven", text="Attendance Time", anchor=tk.W)
 
 		tree_scnd.place(x=0, y=200)
 		
-		clear_btn = ttk.Button(self, width=20, text="Save to Xlsx", command= lambda:xlsx())
-		clear_btn.place(x=100, y=450, width=140, height=30)
-		clear_btn = ttk.Button(self, width=20, text="Save to PDF", command= lambda:pdf())
-		clear_btn.place(x=270, y=450, width=140, height=30)
+		xl_btn = ttk.Button(self, width=20, text="Save to Xlsx", command= lambda:xlsx())
+		xl_btn.place(x=30, y=450, width=140, height=30)
+
+		pdf_btn = ttk.Button(self, width=20, text="Save to PDF", command= lambda:pdf())
+		pdf_btn.place(x=180, y=450, width=140, height=30)
+
 		clear_btn = ttk.Button(self, width=20, text="Clear All", command= lambda:clear())
-		clear_btn.place(x=450, y=450, width=140, height=30)
+		clear_btn.place(x=330, y=450, width=140, height=30)
+
+		percent_btn = ttk.Button(self, width=20, text="Calculate Percentage", command= lambda:percent())
+		percent_btn.place(x=480, y=450, width=140, height=30)
 
 		btn_back = ttk.Button(self, text="Back", width=15, command = lambda:controller.show_frame(AttendanceEmployee))
 		btn_back.place(x=5, y=50)
@@ -903,7 +902,7 @@ class Show_Employee(tk.Frame):
 			date_error = search_date.get()
 			date_another_error = str(date_error)
 			if counter_data != 0:
-				if id_error == 0 and date_error == 0:
+				if str(id_error) == '' and str(date_error) == '':
 					messagebox.showerror("Error", "Please Insert Date Or Id")
 				elif id_error !=0 or date_error !=0:
 					if id_error !=0:
@@ -915,16 +914,17 @@ class Show_Employee(tk.Frame):
 						if len(resultss_id) !=0:
 							try:
 								j = str(i)
-								data = pd.DataFrame(resultss_id, columns= ['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
+								data = pd.DataFrame(resultss_id, columns= ['ID','Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
 								datatoexcel = pd.ExcelWriter("Saved Employee Attendance Excel/Employee List "+today+"("+j+").xlsx", engine='xlsxwriter')
 								data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
 								worksheet = datatoexcel.sheets['Sheet']
-								worksheet.set_column('A:A', 25)
+								worksheet.set_column('A:A', 15)
 								worksheet.set_column('B:B', 20)
 								worksheet.set_column('C:C', 25)
 								worksheet.set_column('D:D', 20)
 								worksheet.set_column('E:E', 20)
 								worksheet.set_column('F:F', 20)
+								worksheet.set_column('G:G', 20)
 								datatoexcel.save()
 								messagebox.showinfo("Success", "Excel File is Generated Successfully Employee List "+today+"("+j+").xlsx")
 							except:
@@ -948,20 +948,22 @@ class Show_Employee(tk.Frame):
 							os.makedirs('./Saved Employee Attendance Excel')
 						if len(results_data) !=0:
 							try:
-								data = pd.DataFrame(results_data, columns= ['Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
+								data = pd.DataFrame(results_data, columns= ['ID','Employee Name','Employee ID', 'Employee Department', 'Attendance', 'Date', 'Time'])
 								datatoexcel = pd.ExcelWriter("Saved Employee Attendance Excel/Employee List "+today+"("+str(i)+").xlsx", engine='xlsxwriter')
 								data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
 								worksheet = datatoexcel.sheets['Sheet']
-								worksheet.set_column('A:A', 25)
+								worksheet.set_column('A:A', 15)
 								worksheet.set_column('B:B', 20)
 								worksheet.set_column('C:C', 25)
 								worksheet.set_column('D:D', 20)
 								worksheet.set_column('E:E', 20)
 								worksheet.set_column('F:F', 20)
+								worksheet.set_column('G:G', 20)
 								datatoexcel.save()
 								messagebox.showinfo("Success", "Excel File is Generated Successfully Employee List "+today+"("+str(i)+").xlsx")
 							except:
 								messagebox.showerror("Error", "Invalid Date Or Record Does Not Exists")
+
 			else:
 				messagebox.showerror("Error", "No Data Availble In Treeview")
 						
@@ -976,7 +978,7 @@ class Show_Employee(tk.Frame):
 			date_error = search_date.get()
 			date_another_error = str(date_error)
 			if counter_data !=0:
-				if id_error == 0 and date_error == 0:
+				if str(id_error) == '' and str(date_error) == '':
 					messagebox.showerror("Error", "Please Insert Date Or Id")
 				elif id_error !=0 or date_error !=0:
 					if id_error !=0:
@@ -989,7 +991,7 @@ class Show_Employee(tk.Frame):
 							try:
 								pdf = SimpleDocTemplate("./Saved Employee Attendance PDF/Employee List "+today+"("+str(i)+").pdf")
 								flow_obj = []
-								td = [['Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
+								td = [['ID','Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
 								for j in resultss_id:
 									td.append(j)
 								table = Table(td)
@@ -1019,7 +1021,7 @@ class Show_Employee(tk.Frame):
 							try:
 								pdf = SimpleDocTemplate("./Saved Employee Attendance PDF/Employee List "+today+"("+str(i)+").pdf")
 								flow_obj = []
-								td = [['Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
+								td = [['ID','Employee Name','Employee ID', "Employee Department", "Employee Status", "Attendance Date", "Attendance Time"]]
 								for j in results_data:
 									td.append(j)
 								table = Table(td)
@@ -1031,6 +1033,60 @@ class Show_Employee(tk.Frame):
 			else:
 				messagebox.showerror("Error", "No Data Availble In Treeview")
 						
+
+		def percent():
+			try:
+				rand = random.randint(0,1000)
+				conn = sqlite3.connect("Registration.db")
+				c = conn.cursor()
+				id = tree_scnd.item(tree_scnd.selection())['values']
+				emp_id = id[2]
+				c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (emp_id,))
+				total_rec = c.fetchall()
+				c.execute("SELECT * FROM absent_employee WHERE employee_status = 'PRESENT' AND employee_id = (?)", (emp_id,))
+				present_rec = c.fetchall()
+				c.execute("SELECT * FROM absent_employee WHERE employee_status = 'ABSENT' AND employee_id = (?)", (emp_id,))
+				absent_rec = c.fetchall()
+				
+				i = int(len(total_rec))
+				j = int(len(present_rec))
+				k = int(len(absent_rec))
+				print(i, j,k)
+				present_percentage = j/i *100
+				absnet_percentage = k/i * 100
+				
+				c.execute("SELECT attendance_date FROM absent_employee WHERE employee_id = (?) ORDER BY attendance_date ASC LIMIT 1", (emp_id,))
+				f_date = c.fetchall()
+				from_date = f_date[0][0]
+
+				c.execute("SELECT attendance_date FROM absent_employee WHERE employee_id = (?) ORDER BY attendance_date DESC LIMIT 1", (emp_id,))
+				t_date = c.fetchall()
+				to_date = t_date[0][0]
+
+				c.execute("SELECT * FROM absent_employee WHERE employee_id =(?)", (emp_id,))
+				emp_recd = c.fetchall()
+				emp_name = emp_recd[0][1]
+				emp_id_ = emp_recd[0][2]
+				emp_dpt = emp_recd[0][3]
+				data_of_employee = [emp_name, emp_id_, emp_dpt, present_percentage, absnet_percentage, from_date, to_date]
+				if not os.path.exists('./Employee Attendance Percentage'):
+					os.makedirs('./Employee Attendance Percentage')
+				data = pd.DataFrame([data_of_employee], columns= ['Employee Name','Employee ID', 'Employee Department', 'Present Percentage', 'Absent Percentage', 'From This Date', 'To This Date'])
+				datatoexcel = pd.ExcelWriter("Employee Attendance Percentage/Employee "+str(emp_name)+"("+str(rand)+").xlsx", engine='xlsxwriter')
+				data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
+				worksheet = datatoexcel.sheets['Sheet']
+				worksheet.set_column('A:A', 25)
+				worksheet.set_column('B:B', 25)
+				worksheet.set_column('C:C', 25)
+				worksheet.set_column('D:D', 25)
+				worksheet.set_column('E:E', 25)
+				worksheet.set_column('F:F', 25)
+				worksheet.set_column('G:G', 25)
+				datatoexcel.save()
+				messagebox.showinfo("Success", "Excel File is Generated Successfully Employee "+str(emp_name)+"("+str(rand)+").xlsx")
+
+			except IndexError as e:
+				messagebox.showerror("Error", "Please Select A Rrcord.")
 
 		def search_by_id():
 			for i in tree_scnd.get_children():
