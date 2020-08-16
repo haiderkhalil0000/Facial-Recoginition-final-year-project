@@ -82,9 +82,9 @@ class StartPage(tk.Frame):
 		conn = sqlite3.connect("Registration.db")
 		c = conn.cursor()
 		c.execute("CREATE TABLE IF NOT EXISTS employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_email TEXT)")
-		c.execute("CREATE TABLE IF NOT EXISTS absent_employee(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_status TEXT, attendance_date TEXT, attendance_time TEXT)")
+		c.execute("CREATE TABLE IF NOT EXISTS all_record(id integer unique primary key autoincrement, employee_name TEXT, employee_id TEXT, employee_department, employee_status TEXT, attendance_date TEXT, attendance_time TEXT)")
 		c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
-		c.execute("CREATE TABLE IF NOT EXISTS attendance_sheet(employee_name TEXT, employee_id TEXT, employee_department TEXT, employee_status TEXT, attendance_date TEXT,attendance_time TEXT)");
+		c.execute("CREATE TABLE IF NOT EXISTS present_record(employee_name TEXT, employee_id TEXT, employee_department TEXT, employee_status TEXT, attendance_date TEXT,attendance_time TEXT)");
 		c.execute("CREATE TABLE IF NOT EXISTS Signup(id integer unique primary key autoincrement, frist_name TEXT, last_name TEXT, Username TEXT)")
 		c.execute('CREATE TABLE IF NOT EXISTS Login(id integer unique primary key autoincrement, Username TEXT, Password TEXT)')
 
@@ -305,7 +305,7 @@ class AttendanceEmployee(tk.Frame):
 						conn = sqlite3.connect("Registration.db")
 						c = conn.cursor()
 						
-						c.execute('SELECT * FROM attendance_sheet WHERE employee_id = (?) AND attendance_date = CURRENT_DATE;', (id_emp,))
+						c.execute('SELECT * FROM present_record WHERE employee_id = (?) AND attendance_date = CURRENT_DATE;', (id_emp,))
 						rzlt = c.fetchall()
 						if len(rzlt) > 0:
 							cap.release()
@@ -315,14 +315,14 @@ class AttendanceEmployee(tk.Frame):
 						
 						else:
 							
-							c.execute("SELECT attendance_date FROM absent_employee ORDER BY id DESC LIMIT 1;")
+							c.execute("SELECT attendance_date FROM all_record ORDER BY id DESC LIMIT 1;")
 							last_record = c.fetchall()
-							c.execute("SELECT * FROM absent_employee")
+							c.execute("SELECT * FROM all_record")
 							i = c.fetchall()
 
 							if len(i) == 0:
-								c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
-								c.execute("UPDATE absent_employee SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
+								c.execute("INSERT INTO all_record(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+								c.execute("UPDATE all_record SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
 								conn.commit()
 							
 							elif last_record[0][0] == None or len(i) >0:
@@ -333,22 +333,22 @@ class AttendanceEmployee(tk.Frame):
 									pass
 								current_date = datetime.strptime(date_now, '%Y-%m-%d').date()									
 								if date_record != current_date:
-										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
+										c.execute("INSERT INTO all_record(employee_name, employee_id, employee_department) SELECT employee_name, employee_id, employee_department FROM employee")
 
 								if len(i) > 0:
-									c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_emp,))
+									c.execute("SELECT * FROM all_record WHERE employee_id = (?)", (id_emp,))
 									x = c.fetchall()
 									if len(x) == 0:
-										c.execute("INSERT INTO absent_employee(employee_name, employee_id, employee_department, attendance_date) VALUES (?,?,?,?)", (name_emp, id_emp, dept_emp,date_now))
+										c.execute("INSERT INTO all_record(employee_name, employee_id, employee_department, attendance_date) VALUES (?,?,?,?)", (name_emp, id_emp, dept_emp,date_now))
 								
-								c.execute("INSERT INTO attendance_sheet(employee_name, employee_id, employee_department,employee_status, attendance_date, attendance_time) VALUES(?,?,?,?,?,?)",(name_emp, id_emp, dept_emp, status_emp, date_now, time_now))
-								c.execute("UPDATE absent_employee SET employee_status = 'ABSENT' WHERE NOT employee_id = :emp_rec_id AND employee_status IS NULL", {'emp_rec_id': id_emp})
-								c.execute("UPDATE absent_employee SET attendance_time  = 'N/A' WHERE NOT employee_id = :emp_rec_id AND attendance_time  IS NULL", {'emp_rec_id': id_emp})
-								c.execute("UPDATE absent_employee SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
-								# c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND employee_status = 'ABSENT' OR employee_status IS NULL", {'emp_rec_id': id_emp})
-								c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE (employee_id = :emp_rec_id AND attendance_date = :attend_date) AND ((employee_status = 'ABSENT') OR (employee_status IS NULL))", {'emp_rec_id': id_emp, 'attend_date': date_now})
-								# c.execute("UPDATE absent_employee SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND attendance_date = :attend_time AND employee_status = 'ABSENT'", {'emp_rec_id': id_emp, 'attend_time': time_now})
-								c.execute("UPDATE absent_employee SET attendance_time  = :attend_time WHERE employee_id = :emp_rec_id AND attendance_time = 'N/A' OR attendance_time IS NULL", {'emp_rec_id': id_emp, 'attend_time': time_now})
+								c.execute("INSERT INTO present_record(employee_name, employee_id, employee_department,employee_status, attendance_date, attendance_time) VALUES(?,?,?,?,?,?)",(name_emp, id_emp, dept_emp, status_emp, date_now, time_now))
+								c.execute("UPDATE all_record SET employee_status = 'ABSENT' WHERE NOT employee_id = :emp_rec_id AND employee_status IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE all_record SET attendance_time  = 'N/A' WHERE NOT employee_id = :emp_rec_id AND attendance_time  IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE all_record SET attendance_date = :attend_date WHERE attendance_date IS NULL", {'attend_date': date_now})
+								# c.execute("UPDATE all_record SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND employee_status = 'ABSENT' OR employee_status IS NULL", {'emp_rec_id': id_emp})
+								c.execute("UPDATE all_record SET employee_status = 'PRESENT' WHERE (employee_id = :emp_rec_id AND attendance_date = :attend_date) AND ((employee_status = 'ABSENT') OR (employee_status IS NULL))", {'emp_rec_id': id_emp, 'attend_date': date_now})
+								# c.execute("UPDATE all_record SET employee_status = 'PRESENT' WHERE employee_id = :emp_rec_id AND attendance_date = :attend_time AND employee_status = 'ABSENT'", {'emp_rec_id': id_emp, 'attend_time': time_now})
+								c.execute("UPDATE all_record SET attendance_time  = :attend_time WHERE employee_id = :emp_rec_id AND attendance_time = 'N/A' OR attendance_time IS NULL", {'emp_rec_id': id_emp, 'attend_time': time_now})
 								messagebox.showinfo("Success", "Attendance of employee "+name_emp+" is Marked Successfully!")
 								playsound('./sound.mp3')
 								conn.commit()
@@ -378,7 +378,7 @@ class AttendanceEmployee(tk.Frame):
 							cap.release()
 							cv2.destroyAllWindows()							
 
-						c.execute('SELECT * FROM attendance_sheet WHERE attendance_date = CURRENT_DATE')
+						c.execute('SELECT * FROM present_record WHERE attendance_date = CURRENT_DATE')
 						attendance_of_employee = c.fetchall()
 						conn.commit()
 						today = str(date.today())
@@ -817,7 +817,7 @@ class Employee(tk.Frame):
 						conn = sqlite3.connect("Registration.db")
 						c = conn.cursor()
 						c.execute('UPDATE employee SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
-						c.execute('UPDATE absent_employee SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
+						c.execute('UPDATE all_record SET employee_name = :new_name WHERE employee_name = :name',{'name': name, "new_name": new_name})
 						c.execute('UPDATE employee SET employee_email = :new_email WHERE employee_email = :email',{'email': email, "new_email": new_email})
 						conn.commit()
 						messagebox.showinfo("Success", "Record Is Updated Successfully Please Refresh To See Changes.")
@@ -907,7 +907,7 @@ class Show_Employee(tk.Frame):
 				elif id_error !=0 or date_error !=0:
 					if id_error !=0:
 						id_search = str(search_id.get())
-						c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_search,))
+						c.execute("SELECT * FROM all_record WHERE employee_id = (?)", (id_search,))
 						resultss_id=c.fetchall()
 						if not os.path.exists('./Saved Employee Attendance Excel'):
 							os.makedirs('./Saved Employee Attendance Excel')
@@ -941,7 +941,7 @@ class Show_Employee(tk.Frame):
 								pass
 						except ValueError as e:
 							pass
-						c.execute("SELECT * FROM absent_employee WHERE attendance_date = (?)", (searched_date,))
+						c.execute("SELECT * FROM all_record WHERE attendance_date = (?)", (searched_date,))
 						results_data=c.fetchall()
 
 						if not os.path.exists('./Saved Employee Attendance Excel'):
@@ -983,7 +983,7 @@ class Show_Employee(tk.Frame):
 				elif id_error !=0 or date_error !=0:
 					if id_error !=0:
 						id_search = str(search_id.get())
-						c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (id_search,))
+						c.execute("SELECT * FROM all_record WHERE employee_id = (?)", (id_search,))
 						resultss_id=c.fetchall()
 						if not os.path.exists('./Saved Employee Attendance PDF'):
 							os.makedirs('./Saved Employee Attendance PDF')
@@ -1012,7 +1012,7 @@ class Show_Employee(tk.Frame):
 								pass
 						except ValueError as e:
 							pass
-						c.execute("SELECT * FROM absent_employee WHERE attendance_date = (?)", (searched_date,))
+						c.execute("SELECT * FROM all_record WHERE attendance_date = (?)", (searched_date,))
 						results_data=c.fetchall()
 
 						if not os.path.exists('./Saved Employee Attendance PDF'):
@@ -1041,52 +1041,97 @@ class Show_Employee(tk.Frame):
 				c = conn.cursor()
 				id = tree_scnd.item(tree_scnd.selection())['values']
 				emp_id = id[2]
-				c.execute("SELECT * FROM absent_employee WHERE employee_id = (?)", (emp_id,))
-				total_rec = c.fetchall()
-				c.execute("SELECT * FROM absent_employee WHERE employee_status = 'PRESENT' AND employee_id = (?)", (emp_id,))
-				present_rec = c.fetchall()
-				c.execute("SELECT * FROM absent_employee WHERE employee_status = 'ABSENT' AND employee_id = (?)", (emp_id,))
-				absent_rec = c.fetchall()
-				
-				i = int(len(total_rec))
-				j = int(len(present_rec))
-				k = int(len(absent_rec))
-				print(i, j,k)
-				present_percentage = j/i *100
-				absnet_percentage = k/i * 100
-				
-				c.execute("SELECT attendance_date FROM absent_employee WHERE employee_id = (?) ORDER BY attendance_date ASC LIMIT 1", (emp_id,))
-				f_date = c.fetchall()
-				from_date = f_date[0][0]
+				c.execute("SELECT * FROM all_record WHERE employee_id=(?);", (emp_id,))
+				all_data = c.fetchall()
+				update_id= all_data[0][0]
+				emp_name = all_data[0][1]
+				emp_id = all_data[0][2]
+				emp_depart = all_data[0][3]
+				top = Tk()
+				top.geometry("300x400")
+				top.title("Calculate Percentage")
+				frame = Frame(top)
+				Label(top, text="Calculate Percentage", font=("Times New Roman", 20, 'bold'), bg="black", fg="white").pack(fill="x")
 
-				c.execute("SELECT attendance_date FROM absent_employee WHERE employee_id = (?) ORDER BY attendance_date DESC LIMIT 1", (emp_id,))
-				t_date = c.fetchall()
-				to_date = t_date[0][0]
+				Label(top, text="From This Date").pack()
+				from_date_var = StringVar()
+				from_date_ = ttk.Entry(top, width=30, textvariable= from_date_var)
+				from_date_.pack()
 
-				c.execute("SELECT * FROM absent_employee WHERE employee_id =(?)", (emp_id,))
-				emp_recd = c.fetchall()
-				emp_name = emp_recd[0][1]
-				emp_id_ = emp_recd[0][2]
-				emp_dpt = emp_recd[0][3]
-				data_of_employee = [emp_name, emp_id_, emp_dpt, present_percentage, absnet_percentage, from_date, to_date]
-				if not os.path.exists('./Employee Attendance Percentage'):
-					os.makedirs('./Employee Attendance Percentage')
-				data = pd.DataFrame([data_of_employee], columns= ['Employee Name','Employee ID', 'Employee Department', 'Present Percentage', 'Absent Percentage', 'From This Date', 'To This Date'])
-				datatoexcel = pd.ExcelWriter("Employee Attendance Percentage/Employee "+str(emp_name)+"("+str(rand)+").xlsx", engine='xlsxwriter')
-				data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
-				worksheet = datatoexcel.sheets['Sheet']
-				worksheet.set_column('A:A', 25)
-				worksheet.set_column('B:B', 25)
-				worksheet.set_column('C:C', 25)
-				worksheet.set_column('D:D', 25)
-				worksheet.set_column('E:E', 25)
-				worksheet.set_column('F:F', 25)
-				worksheet.set_column('G:G', 25)
-				datatoexcel.save()
-				messagebox.showinfo("Success", "Excel File is Generated Successfully Employee "+str(emp_name)+"("+str(rand)+").xlsx")
+				Label(top, text="To This Date").pack()
+				to_date_var = StringVar()
+				to_date_ = ttk.Entry(top, width=30, textvariable= to_date_var)
+				to_date_.pack()
+				
+				btn_update = ttk.Button(top, width=20, text="Calculate Percentage", command= lambda:calc(from_date_.get(), to_date_.get()))
+				btn_update.pack()
+				frame.pack()
+				def calc(from_, to_):
+					if from_ == "":
+						messagebox.showerror("Error", "Please Enter From Date")
+					elif to_ == "":
+						messagebox.showerror("Error", "Please Enter To Date")
+					elif from_ != "":
+						try:
+							from_date_val = datetime.strptime(from_, '%Y-%m-%d').date()
+						except ValueError as e:
+							messagebox.showerror("Error", "Please Enter Valid Date In From Date")
+						if to_ != "":
+							try:
+								to_date_val = datetime.strptime(to_, '%Y-%m-%d').date()
+							except ValueError as e:
+								messagebox.showerror("Error", "Please Enter Valid Date In To Date")
+							else:
+								conn = sqlite3.connect("Registration.db")
+								c = conn.cursor()
+								c.execute("SELECT * FROM all_record WHERE attendance_date = (?) AND employee_id = (?)", (from_date_val, emp_id,))
+								from_rzlt =c.fetchall()
+								c.execute("SELECT * FROM all_record WHERE attendance_date = (?) AND employee_id = (?)", (to_date_val,emp_id,))
+								to_rzlt = c.fetchall()
+								if len(from_rzlt) == 0:
+									messagebox.showerror("Error", "No Record Exists From This Date")
+								elif len(to_rzlt) == 0:
+									messagebox.showerror("Error", "No Record Exists To This Date")
+								else:
+									c.execute("SELECT * FROM all_record WHERE attendance_date BETWEEN (?) AND (?) AND employee_id = (?)", (from_date_val,to_date_val,emp_id,))
+									total_rzlt = c.fetchall()
+									c.execute('SELECT * FROM all_record WHERE attendance_date BETWEEN (?) AND (?) AND employee_id = (?) AND employee_status = "PRESENT" ', (from_date_val,to_date_val,emp_id,))
+									present_rzlt = c.fetchall()
+									c.execute('SELECT * FROM all_record WHERE attendance_date BETWEEN (?) AND (?) AND employee_id = (?) AND employee_status = "ABSENT" ', (from_date_val,to_date_val,emp_id,))
+									absent_rzlt = c.fetchall()
+									rand = random.randint(0,1000)
+									i = int(len(total_rzlt))
+									j = int(len(present_rzlt))
+									k = int(len(absent_rzlt))
+									
+									present_percentage = j/i *100
+									absnet_percentage = k/i * 100
+
+									c.execute("SELECT * FROM all_record WHERE employee_id =(?)", (emp_id,))
+									emp_recd = c.fetchall()
+									emp_name = emp_recd[0][1]
+									emp_id_ = emp_recd[0][2]
+									emp_dpt = emp_recd[0][3]
+									data_of_employee = [emp_name, emp_id_, emp_dpt, present_percentage, absnet_percentage, from_date_val, to_date_val]
+									if not os.path.exists('./Employee Attendance Percentage'):
+										os.makedirs('./Employee Attendance Percentage')
+									data = pd.DataFrame([data_of_employee], columns= ['Employee Name','Employee ID', 'Employee Department', 'Present Percentage', 'Absent Percentage', 'From This Date', 'To This Date'])
+									datatoexcel = pd.ExcelWriter("Employee Attendance Percentage/Employee "+str(emp_name)+"("+str(rand)+").xlsx", engine='xlsxwriter')
+									data.to_excel(datatoexcel, index=False, sheet_name = "Sheet")
+									worksheet = datatoexcel.sheets['Sheet']
+									worksheet.set_column('A:A', 25)
+									worksheet.set_column('B:B', 25)
+									worksheet.set_column('C:C', 25)
+									worksheet.set_column('D:D', 25)
+									worksheet.set_column('E:E', 25)
+									worksheet.set_column('F:F', 25)
+									worksheet.set_column('G:G', 25)
+									datatoexcel.save()
+									messagebox.showinfo("Success", "Excel File is Generated Successfully Employee "+str(emp_name)+"("+str(rand)+").xlsx")
 
 			except IndexError as e:
 				messagebox.showerror("Error", "Please Select A Rrcord.")
+
 
 		def search_by_id():
 			for i in tree_scnd.get_children():
@@ -1096,7 +1141,7 @@ class Show_Employee(tk.Frame):
 			conn = sqlite3.connect("Registration.db")
 			c = conn.cursor()
 			id_search = str(search_id.get())
-			find_data= ("SELECT * FROM absent_employee WHERE employee_id = ?")
+			find_data= ("SELECT * FROM all_record WHERE employee_id = ?")
 			c.execute(find_data,[(id_search)])
 			resultss=c.fetchall()
 			counter_data = len(tree_scnd.get_children())
@@ -1131,7 +1176,7 @@ class Show_Employee(tk.Frame):
 				except ValueError as e:
 					# messagebox.showerror("Error", "Incorrect Date Format")
 					pass
-				find_data= ("SELECT * FROM absent_employee WHERE attendance_date = ?")
+				find_data= ("SELECT * FROM all_record WHERE attendance_date = ?")
 				try:
 					c.execute(find_data,[(searched_date)])
 				except UnboundLocalError as e:
